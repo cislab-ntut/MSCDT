@@ -29,6 +29,7 @@ r_config.set('DEFAULT', 'CSP0_SEVER_IP', os.environ.get('CSP0_SEVER_IP', config[
 r_config.set('DEFAULT', 'CSP1_SEVER_IP', os.environ.get('CSP1_SEVER_IP', config['DEFAULT']['CSP1_SEVER_IP']))
 r_config.set('DEFAULT', 'CSP0_SEVER_PORT', os.environ.get('CSP0_SEVER_PORT', config['DEFAULT']['CSP0_SEVER_PORT']))
 r_config.set('DEFAULT', 'CSP1_SEVER_PORT', os.environ.get('CSP1_SEVER_PORT', config['DEFAULT']['CSP1_SEVER_PORT']))
+r_config.set('DEFAULT', 'RETRIES', os.environ.get('RETRIES', config['DEFAULT']['RETRIES']))
 # print(r_config.sections())
 # print(r_config['DEFAULT']['CSP0_SEVER_IP'])
 # print(r_config['DEFAULT']['CSP0_SEVER_PORT'])
@@ -160,14 +161,17 @@ for k in range(60):
     #print("MSCDT v",v)
     #mo=ModelOwner(version=v)
     csp0 = CloudServiceProvider0(r_config, version=3)
-    time.sleep(1)
+    #time.sleep(1)
     csp1 = CloudServiceProvider1(r_config, version=3)
-    time.sleep(1)
+    csp1.start_connection()
+    #time.sleep(1)
     mo=ModelOwner(r_config, version=3)
+    mo.start_connection()
 
     csu = CloudServiceUser(r_config, version=3)
+    csu.start_connection()
     p = Protocol(version=3)
-
+    #print("All connection established")
     #print("version: ", v)
     ###Prepare model(offline)
     #print("MO encrypt model and distrubte model shares")
@@ -230,7 +234,7 @@ for k in range(60):
     ### MSCDT Node Evaluation
     #start_time = time.time()
     eval_time= p.node_eval(csp0,csp1,model.feature_names_in_,PRIME)######################testing
-
+    #print("node_eval end")
     # end_time = time.time()
     # execution_time = float(end_time - start_time)*1000
     # if v==1:
@@ -249,6 +253,7 @@ for k in range(60):
     #print("Tree before permute:\n")
     #p.print_tree(csp0,csp1)
     p.permute(csp0,csp1)
+    #print("permute end")
     #print("Tree after permute:\n")
     #p.print_tree(csp0,csp1)
     # end_time = time.time()

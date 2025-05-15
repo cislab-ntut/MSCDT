@@ -146,13 +146,37 @@ class ModelOwner():
         self.internal_node_num=0
         self.leaf_node_num=0
         self.version = version
-
+        self.config = config
+    
+    def start_connection(self):
+        retry_counts = 0
         self.csp0_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) ##[Socket Communication modified]
-        self.csp0_server.connect((config['DEFAULT']['CSP0_SEVER_IP'], int(config['DEFAULT']['CSP0_SEVER_PORT'])))           ##[Socket Communication modified]
-        self.csp0_server.send('MO'.encode())                                 ##[Socket Communication modified]
+        RETRIES = int(self.config['DEFAULT']['RETRIES'])
+        while retry_counts < RETRIES:
+            try:
+                self.csp0_server.connect((self.config['DEFAULT']['CSP0_SEVER_IP'], int(self.config['DEFAULT']['CSP0_SEVER_PORT']))) ##[Socket Communication modified]
+                self.csp0_server.send(' MO'.encode())
+                break
+            except Exception as e:
+                print("MO failed to connect CSP0. Retry", retry_counts)
+                print(e)
+                retry_counts += 1
+                time.sleep(0.3)
+        # if retry_counts == self.config['DEFAULT']['RETRIES']:
+        #     print("Suspend at MO connect to CSP0.\n Enter anything to manually retry the connection.")
+        #     input()
+        retry_counts = 0
         self.csp1_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) ##[Socket Communication modified]
-        self.csp1_server.connect((config['DEFAULT']['CSP1_SEVER_IP'], int(config['DEFAULT']['CSP1_SEVER_PORT'])))           ##[Socket Communication modified]
-        self.csp1_server.send('MO'.encode())                                 ##[Socket Communication modified]
+        while retry_counts < RETRIES:
+            try:
+                self.csp1_server.connect((self.config['DEFAULT']['CSP1_SEVER_IP'], int(self.config['DEFAULT']['CSP1_SEVER_PORT']))) ##[Socket Communication modified]
+                self.csp1_server.send(' MO'.encode())
+                break
+            except Exception as e:
+                print("MO failed to connect CSP1. Retry", retry_counts)
+                print(e)
+                retry_counts += 1
+                time.sleep(0.3)
 
     def input_model_and_split_into_shares(self, root_node,attrl,prime):
         self.prime=prime 
@@ -589,8 +613,8 @@ class CloudServiceProvider0():
             #print("[CSP0] Connected by ", self.address)
             
             #while True:
-            data = client.recv(1024)
-            if(data == b'MO'): ## MO connection thread
+            data = client.recv(3)
+            if(data == b' MO'): ## MO connection thread
                 socket_count += 1
                 threading.Thread(
                     target=self.server_handle_recv_MO,
@@ -609,7 +633,7 @@ class CloudServiceProvider0():
                     args=(client,)
                 ).start()
             else:
-                print("Can not distingusih MO CSU CSP.")
+                print("[CSP0] Can not distingusih MO CSU CSP: ", data)
     
     def server_handle_recv_MO(self, client: socket.socket):
         #print("[CSP0] MO")
@@ -887,9 +911,9 @@ class CloudServiceProvider1():
 
         self.queue_shared_MO_CSU = queue.Queue() ## for only one set of MO+CSU ##[Socket Communication modified]
 
-        self.csp0_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) ##[Socket Communication modified]
-        self.csp0_server.connect((config['DEFAULT']['CSP0_SEVER_IP'], int(config['DEFAULT']['CSP0_SEVER_PORT'])))           ##[Socket Communication modified]
-        self.csp0_server.send('CSP'.encode())                                ##[Socket Communication modified]
+        # self.csp0_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) ##[Socket Communication modified]
+        # self.csp0_server.connect((config['DEFAULT']['CSP0_SEVER_IP'], int(config['DEFAULT']['CSP0_SEVER_PORT'])))           ##[Socket Communication modified]
+        # self.csp0_server.send('CSP'.encode())                                ##[Socket Communication modified]
 
         self.cspthread = threading.Thread(                   ##[Socket Communication modified]
             target=self.server_threading,
@@ -897,8 +921,21 @@ class CloudServiceProvider1():
         )
         self.cspthread.start()
     
-    # def __del__(self):
-    #     print("[CSP1] destructed")
+    def start_connection(self):
+        retry_counts = 0
+        self.csp0_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) ##[Socket Communication modified]
+        RETRIES = int(self.config['DEFAULT']['RETRIES'])
+        while retry_counts < RETRIES:
+            try:
+                self.csp0_server.connect((self.config['DEFAULT']['CSP0_SEVER_IP'], int(self.config['DEFAULT']['CSP0_SEVER_PORT']))) ##[Socket Communication modified]
+                self.csp0_server.send('CSP'.encode())                                ##[Socket Communication modified]
+                break
+            except Exception as e:
+                print("CSU failed to connect CSP0. Retry", retry_counts)
+                print(e)
+                retry_counts += 1
+                time.sleep(0.3)
+
 
     def server_threading(self): ##[Socket Communication modified]
         self.s_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -913,9 +950,9 @@ class CloudServiceProvider1():
             client, address = self.s_socket.accept()
             #print("[CSP1] Connected by ", address)
 
-            data = client.recv(1024)
+            data = client.recv(3)
             #print(data)
-            if(data == b'MO'):
+            if(data == b' MO'):
                 self.socket_count += 1
                 threading.Thread(
                     target=self.server_handle_recv_MO,
@@ -927,8 +964,11 @@ class CloudServiceProvider1():
                     target=self.server_handle_recv_CSU,
                     args=(client,)
                 ).start()
+            else:
+                print("[CSP1] Can not distingusih MO CSU: ", data)
 
     def server_handle_recv_MO(self, client:socket.socket):
+        #print("[CSP1] MO")
         if(self.version == 3):
             data = client.recv(6, socket.MSG_WAITALL)
             #print(data)
@@ -1217,15 +1257,46 @@ class CloudServiceUser():
         self.version=version
         self.qData = None
         self.prime = None
+        self.config = config
 
-        self.csp0_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) ##[Socket Communication modified]
-        self.csp0_server.connect((config['DEFAULT']['CSP0_SEVER_IP'], int(config['DEFAULT']['CSP0_SEVER_PORT'])))           ##[Socket Communication modified]
-        self.csp0_server.send('CSU'.encode())                                ##[Socket Communication modified]
-        self.csp1_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) ##[Socket Communication modified]
-        self.csp1_server.connect((config['DEFAULT']['CSP1_SEVER_IP'], int(config['DEFAULT']['CSP1_SEVER_PORT'])))           ##[Socket Communication modified]
-        self.csp1_server.send('CSU'.encode())                                ##[Socket Communication modified]
+        # self.csp0_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) ##[Socket Communication modified]
+        # self.csp0_server.connect((config['DEFAULT']['CSP0_SEVER_IP'], int(config['DEFAULT']['CSP0_SEVER_PORT'])))           ##[Socket Communication modified]
+        # self.csp0_server.send('CSU'.encode())                                ##[Socket Communication modified]
+        # self.csp1_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) ##[Socket Communication modified]
+        # self.csp1_server.connect((config['DEFAULT']['CSP1_SEVER_IP'], int(config['DEFAULT']['CSP1_SEVER_PORT'])))           ##[Socket Communication modified]
+        # self.csp1_server.send('CSU'.encode())                                ##[Socket Communication modified]
 
         self.z_reconstruct_queue = queue.Queue()
+
+    def start_connection(self):
+        retry_counts = 0
+        self.csp0_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) ##[Socket Communication modified]
+        RETRIES = int(self.config['DEFAULT']['RETRIES'])
+        while retry_counts < RETRIES:
+            try:
+                self.csp0_server.connect((self.config['DEFAULT']['CSP0_SEVER_IP'], int(self.config['DEFAULT']['CSP0_SEVER_PORT']))) ##[Socket Communication modified]
+                self.csp0_server.send('CSU'.encode())
+                break
+            except Exception as e:
+                print("CSU failed to connect CSP0. Retry", retry_counts)
+                print(e)
+                retry_counts += 1
+                time.sleep(0.3)
+        # if retry_counts == self.config['DEFAULT']['RETRIES']:
+        #     print("Suspend at MO connect to CSP0.\n Enter anything to manually retry the connection.")
+        #     input()
+        retry_counts = 0
+        self.csp1_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) ##[Socket Communication modified]
+        while retry_counts < RETRIES:
+            try:
+                self.csp1_server.connect((self.config['DEFAULT']['CSP1_SEVER_IP'], int(self.config['DEFAULT']['CSP1_SEVER_PORT']))) ##[Socket Communication modified]
+                self.csp1_server.send('CSU'.encode())
+                break
+            except Exception as e:
+                print("CSU failed to connect CSP1.", retry_counts)
+                print(e)
+                retry_counts += 1
+                time.sleep(0.3)
 
     def set_seed(self, seed):
         self.seed = seed
