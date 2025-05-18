@@ -1,0 +1,46 @@
+version: '3'
+services:
+  mo:
+    image: cislab/mscdt_mo:latest
+    depends_on:
+      - csp0
+      - csp1
+    network_mode: host
+
+  csp0:
+    image: cislab/mscdt_csp0:latest
+    network_mode: host
+    ports:
+      - "8888:8888"
+
+  csp1:
+    image: cislab/mscdt_csp1:latest
+    depends_on:
+      - csp0
+    network_mode: host
+    ports:
+      - "8887:8887"
+
+  csu:
+    image: cislab/mscdt_csu:latest
+    depends_on:
+      - csp0
+      - csp1
+    network_mode: host
+
+networks:
+  mscdtnet:
+    #external: true
+    name: mscdtnet
+    driver: bridge
+  # default:
+  #   driver: bridge
+  # csp0:
+  #   driver: bridge
+  #   driver_opts:
+  #     com.docker.network.bridge.host_binding_ipv4: "127.0.0.1"
+  
+  # csp1:
+  #   driver: bridge
+  #   driver_opts:
+  #     com.docker.network.bridge.host_binding_ipv4: "127.0.0.1"

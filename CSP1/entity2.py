@@ -64,6 +64,7 @@ class CloudServiceProvider1():
 
         self.cspthread = threading.Thread(
             target=self.server_threading,
+            name="CSP1_main",
             #args=(client,)
         )
         self.cspthread.start()
@@ -96,7 +97,7 @@ class CloudServiceProvider1():
 
         self.socket_count = 0
 
-        #print("[CSP1] Listening on ", CSP1_SEVER_IP , CSP1_SEVER_PORT)
+        CSP1_Logger.info("[CSP1] Listening on {}:{}".format(self.config['DEFAULT']['CSP1_SEVER_IP'], int(self.config['DEFAULT']['CSP1_SEVER_PORT'])))
         while self.socket_count < 2:
             client, address = self.s_socket.accept()
             CSP1_Logger.info("[CSP1] Connected by {}".format(address))
@@ -106,12 +107,14 @@ class CloudServiceProvider1():
                 self.socket_count += 1
                 threading.Thread(
                     target=self.server_handle_recv_MO,
+                    name="CSP0_MO",
                     args=(client,)
                 ).start()
             elif(data == b'CSU'):
                 self.socket_count += 1
                 threading.Thread(
                     target=self.server_handle_recv_CSU,
+                    name="CSP0_CSU",
                     args=(client,)
                 ).start()
             else:

@@ -81,7 +81,7 @@ class CloudServiceProvider0():
         self.s_socket.listen(5)
         socket_count = 0
 
-        #print("[CSP0] Listening on ", CSP0_SEVER_IP , CSP0_SEVER_PORT)
+        CSP0_Logger.info("[CSP0] Listening on  {}:{}".format(self.config['DEFAULT']['CSP0_SEVER_IP'], int(self.config['DEFAULT']['CSP0_SEVER_PORT'])))
         while socket_count < 3:
             client, self.address = self.s_socket.accept()
             CSP0_Logger.info("[CSP0] Connected by  {}".format(self.address))
