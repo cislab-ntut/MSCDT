@@ -92,6 +92,7 @@ if __name__ == "__main__":
     for i in range(len(udata)):
             udata[i]=data[i]
 
+    CSU_Logger.info("[CSU] Transfrom query data.")
     csu.set_query_data_v3(udata)
     csu.send_query_data_to_csp() ################################## socket OK
     csu.receive_result_items_and_compute_shared_result()  ##[Socket Communication modified]

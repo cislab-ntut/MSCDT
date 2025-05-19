@@ -86,7 +86,7 @@ class ModelOwner():
                     input()
                     retry_counts = 0
 
-    def input_model_and_split_into_shares(self, root_node,attrl,prime):
+    def input_model_and_split_into_shares(self, root_node, attrl, prime):
         self.prime=prime 
         self.attrlist=attrl
         self._root_node = root_node
@@ -96,6 +96,7 @@ class ModelOwner():
         return self._root_node
 
     def split_model_into_shares(self) -> list:
+        MO_Logger.info("[MO] Start model transforming ... (split into shares)")
         self.internal_node_num=0
         self.leaf_node_num=0
         if self._root_node == None:
@@ -119,6 +120,7 @@ class ModelOwner():
         if self.version==4:
             self._root_node_shares = self._build_shares_v4(self._root_node)
         #print("MO self._root_node_shares: ", self._root_node_shares)
+        MO_Logger.info("[MO] End model transforming ... (split into shares)")
         return self._root_node_shares
 
     # Combine copy1, cop2 into one function
@@ -394,10 +396,14 @@ class ModelOwner():
         #print(A0)
         #print(A1.shape)
         #print(A1)
+        MO_Logger.info("[MO] Send share of permutation matrix (A0) to CSP0... ")
         self.csp0_server.send(int_array_to_bytes(A0.shape))
         self.csp0_server.send(A0.tobytes())
+        MO_Logger.info("[MO] Success sending A0 to CSP0.")
+        MO_Logger.info("[MO] Send share of permutation matrix (A1) to CSP1... ")
         self.csp1_server.send(int_array_to_bytes(A1.shape))
         self.csp1_server.send(A1.tobytes())
+        MO_Logger.info("[MO] Success sending A1 to CSP1.")
         
 
         X0 = np.random.randint(0,self.prime-1,(self.internal_node_num,len(self.attrlist)))
@@ -415,14 +421,18 @@ class ModelOwner():
         # print("Y0 ", Y0)
         # print("Z0 shape: ", Z0.shape)
         # print("Z0 ", Z0)
+        MO_Logger.info("[MO] Send dot-product triples to CSP0... ")
         self.csp0_server.send(int_array_to_bytes(X0.shape))
         self.csp0_server.send(X0.tobytes())
         self.csp0_server.send(Y0.tobytes())
         self.csp0_server.send(Z0.tobytes())
+        MO_Logger.info("[MO] Success sending dot-product triples to CSP0... ")
+        MO_Logger.info("[MO] Send dot-product triples to CSP1... ")
         self.csp1_server.send(int_array_to_bytes(X1.shape))
         self.csp1_server.send(X1.tobytes())
         self.csp1_server.send(Y1.tobytes())
         self.csp1_server.send(Z1.tobytes())
+        MO_Logger.info("[MO] Success sending dot-product triples to CSP1... ")
         return A0, A1
 
 
@@ -453,27 +463,43 @@ class ModelOwner():
         #csp1.set_model_share1_root_node(self._root_node_shares[1],self.attrlist,self.prime)
 
         ### send prime
+        MO_Logger.info("[MO] Send share to CSP0...")
         self.csp0_server.send(int(self.prime).to_bytes(PRIME_SIZE, 'big'))
         #print("PRIME: ", self.prime)
+        MO_Logger.info("[MO] Success sending share to CSP0.")
+        MO_Logger.info("[MO] Send share to CSP1...")
         self.csp1_server.send(int(self.prime).to_bytes(PRIME_SIZE, 'big'))
+        MO_Logger.info("[MO] Success sending share to CSP1.")
 
         ### send model tree share
+        MO_Logger.info("[MO] Send model share to CSP0...")
         data = pickle.dumps(self._root_node_shares[0])
         self.csp0_server.send(len(data).to_bytes(PRIME_SIZE, 'big'))
         self.csp0_server.send(data)
+        MO_Logger.info("[MO] Success sending model share to CSP0.")
+        MO_Logger.info("[MO] Send model share to CSP1...")
         data = pickle.dumps(self._root_node_shares[1])
         self.csp1_server.send(len(data).to_bytes(PRIME_SIZE, 'big'))
         self.csp1_server.send(data)
+        MO_Logger.info("[MO] Success sending model share to CSP1.")
 
         ### send attribute list
         #print(self.attrlist)
+        MO_Logger.info("[MO] Send attribute list to CSP0...")
         data = str(self.attrlist)[2:-2].encode()
         self.csp0_server.send(len(data).to_bytes(PRIME_SIZE, 'big'))
         self.csp0_server.send(data)
+        MO_Logger.info("[MO] Success sending attribute list to CSP0.")
+        MO_Logger.info("[MO] Send attribute list to CSP1...")
         data = str(self.attrlist)[2:-2].encode()
         self.csp1_server.send(len(data).to_bytes(PRIME_SIZE, 'big'))
         self.csp1_server.send(data)
+        MO_Logger.info("[MO] Success sending attribute list to CSP1.")
 
     def close_csp_connection(self):
+        MO_Logger.info("[MO] Close CSP0 connection...")
         self.csp0_server.close()
+        MO_Logger.info("[MO] Success close CSP0 connection.")
+        MO_Logger.info("[MO] Close CSP1 connection...")
         self.csp1_server.close()
+        MO_Logger.info("[MO] Success close CSP1 connection.")

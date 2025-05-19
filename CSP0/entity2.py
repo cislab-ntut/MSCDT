@@ -116,15 +116,18 @@ class CloudServiceProvider0():
         CSP0_Logger.info("[CSP0] MO connected")
         ### receive model tree share, attribute list and prime
         self.prime = int.from_bytes(client.recv(PRIME_SIZE, socket.MSG_WAITALL), 'big')
+        CSP0_Logger.info("[CSP0] Received prime from MO.")
         #print("[CSP0] PRIME: ", self.prime)
         tree_share_pickle_size = int.from_bytes(client.recv(PRIME_SIZE, socket.MSG_WAITALL), 'big')
         data = client.recv(tree_share_pickle_size, socket.MSG_WAITALL)
+        CSP0_Logger.info("[CSP0] Received model share from MO.")
         #print("[CSP] tree share size: ", len(data))
         #self.model_share0_root = pickle.loads(data)
         self.queue_shared_MO_CSU.put(data)
         data = client.recv(PRIME_SIZE, socket.MSG_WAITALL)
         attri_list_size = int.from_bytes(data, 'big')
         data = client.recv(attri_list_size, socket.MSG_WAITALL)
+        CSP0_Logger.info("[CSP0] Received attribute list from MO.")
         self.attri_list = data.decode().split("' '")
         #print("[CSP] attribute list: ", self.attri_list)
 
@@ -135,6 +138,7 @@ class CloudServiceProvider0():
             #print("[CSP] A0_dim", A0_dim)
             data = client.recv(A0_dim[0] * A0_dim[1] * 8, socket.MSG_WAITALL)
             self.A0 = np.frombuffer(data, dtype=(np.int64)).reshape(A0_dim)
+            CSP0_Logger.info("[CSP0] Received share of permutation matrix (A0) from MO.")
             #print("[CSP] A0 szie: ", self.A0.shape)
             #print("[CSP] A0", self.A0)
 
@@ -152,6 +156,7 @@ class CloudServiceProvider0():
                             dtype=(np.int64))
             #print("[CSP] Z0: ", Z0)
             self.MVM_triples = (X0, Y0, Z0)
+            CSP0_Logger.info("[CSP0] Received dot-product triples from MO.")
             
             self.queue_shared_MO_CSU.put(self.A0)
             self.queue_shared_MO_CSU.put((X0, Y0, Z0))
@@ -175,10 +180,13 @@ class CloudServiceProvider0():
         ### blocking until necessary variable assigned
         self.all_var_ready_for_CSU.wait()
         ## send prime
+        CSP0_Logger.info("[CSP0] Send prime to CSU...")
         client.send(int(self.prime).to_bytes(PRIME_SIZE, 'big'))
+        CSP0_Logger.info("[CSP0] Success sending  prime to CSU...")
         ### receive CSU query data
         query_size = int.from_bytes(client.recv(PRIME_SIZE, socket.MSG_WAITALL), 'big')
         self.qDataShare0 = np.frombuffer(client.recv(query_size*8, socket.MSG_WAITALL),dtype=(np.int64))
+        CSP0_Logger.info("[CSP0] Received CSU query data share from CSU.")
         #print("[CSP0]-CSU qDataShare0: ", self.qDataShare0)
         #print("[CSP0]-CSU prime: ", self.prime)
 
@@ -201,7 +209,7 @@ class CloudServiceProvider0():
             self.prime = self.queue_shared_MO_CSU.get()
 
             p0_node = self.model_share0_root
-
+            CSP0_Logger.info("[CSP0] Start NodeEval.")
             #start_time = time.time()
 
             #z0, z1= MVM(csp0.A0,csp1.A1, csp0.qDataShare0,csp1.qDataShare1,csp0.MVM_triples, csp1.MVM_triples,self.prime)
@@ -230,7 +238,9 @@ class CloudServiceProvider0():
             #print("Attribute selection time: ", execution_time)
 
             #start_time = time.time()
+            
             self.minus_v4(z0,p0_node)
+            CSP0_Logger.info("[CSP0] End NodeEval.")
             #end_time = time.time()
             #execution_time = float(end_time - start_time)*1000
             # self.permute()
@@ -262,14 +272,19 @@ class CloudServiceProvider0():
             #print(QA)
             
             self.minus_v4(QA0,p0_node)
-
+        CSP0_Logger.info("[CSP0] Start NodePermute.")
         self.permute()
+        CSP0_Logger.info("[CSP0] End NodePermute.")
 
+        CSP0_Logger.info("[CSP0] Send model share to CSU...")
         data = pickle.dumps(self.model_share0_root)
         client.send(len(data).to_bytes(PRIME_SIZE, 'big'))
         client.send(data)
+        CSP0_Logger.info("[CSP0] Success sending model share to CSU...")
+        CSP0_Logger.info("[CSP0] Send label share to CSU...")
         client.send(len(self.label_share0).to_bytes(PRIME_SIZE, 'big')) 
-        client.send(int_array_to_bytes(self.label_share0)) 
+        client.send(int_array_to_bytes(self.label_share0))
+        CSP0_Logger.info("[CSP0] Success sending label share to CSU...")
         return tree_eval
 
     def server_handle_recv_CSP(self, client: socket.socket):
@@ -280,8 +295,10 @@ class CloudServiceProvider0():
             p1x_dim = tuple(bytes_to_int_array(data))
             p1x = np.frombuffer(client.recv(p1x_dim[0] * p1x_dim[1] * 8, socket.MSG_WAITALL),
                             dtype=(np.int64)).reshape(p1x_dim)
+            CSP0_Logger.info("[CSP0] Received dot-product element x1+X1 from CSP1.")
             p1y_size = int.from_bytes(client.recv(PRIME_SIZE, socket.MSG_WAITALL), 'big')
             p1y = np.frombuffer(client.recv(p1y_size*8, socket.MSG_WAITALL),dtype=(np.int64))
+            CSP0_Logger.info("[CSP0] Received dot-product element y1+Y1 from CSP1.")
 
             self.queue_shared_CSP1_to_CSP0.put((p1x,p1y))
             (p0x, p0y) = self.queue_shared_CSP0_to_CSP1.get()

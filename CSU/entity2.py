@@ -196,32 +196,42 @@ class CloudServiceUser():
     def send_query_data_to_csp(self):
         # csp0.set_query_data_share0(self.qDataShare0)  ##[Socket Communication modified]
         # csp1.set_query_data_share1(self.qDataShare1)  ##[Socket Communication modified]
+        CSU_Logger.info("[CSU] Send query data share to CSP0...")
         self.csp0_server.send(len(self.qDataShare0).to_bytes(PRIME_SIZE, 'big')) ##[Socket Communication modified]
         self.csp0_server.send(self.qDataShare0.tobytes())                        ##[Socket Communication modified]
+        CSU_Logger.info("[CSU] Success sending model share to CSP0...")
         #print("[CSU] qDataShare0: ", self.qDataShare0)
+        CSU_Logger.info("[CSU] Send query data share to CSP1...")
         self.csp1_server.send(len(self.qDataShare1).to_bytes(PRIME_SIZE, 'big')) ##[Socket Communication modified]
         self.csp1_server.send(self.qDataShare1.tobytes())                        ##[Socket Communication modified]
+        CSU_Logger.info("[CSU] Success sending model share to CSP1...")
         #print("[CSU] qDataShare1: ", self.qDataShare1)
 
     def receive_result_items_and_compute_shared_result(self,):
         tree_share_pickle_size = int.from_bytes(self.csp0_server.recv(PRIME_SIZE, socket.MSG_WAITALL), 'big') #model_share0_root
         data = self.csp0_server.recv(tree_share_pickle_size, socket.MSG_WAITALL)          #model_share0_root
         model_share0_root = pickle.loads(data)                                            #model_share0_root
+        CSU_Logger.info("[CSU] Received model share from CSP0.")
         label_share0_size = int.from_bytes(self.csp0_server.recv(PRIME_SIZE, socket.MSG_WAITALL), 'big')   #label_share0
         data = self.csp0_server.recv(label_share0_size*PRIME_SIZE, socket.MSG_WAITALL)                     #label_share0
         label_share0 = bytes_to_int_array(data)                                        #label_share0
+        CSU_Logger.info("[CSU] Received label share from CSP0.")
 
         tree_share_pickle_size = int.from_bytes(self.csp1_server.recv(PRIME_SIZE, socket.MSG_WAITALL), 'big') #model_share1_root
         data = self.csp1_server.recv(tree_share_pickle_size, socket.MSG_WAITALL)          #model_share1_root
         model_share1_root = pickle.loads(data)                                            #model_share1_root
+        CSU_Logger.info("[CSU] Received model share from CSP1.")
         leaf_num = int.from_bytes(self.csp1_server.recv(PRIME_SIZE, socket.MSG_WAITALL), 'big')       #leaf_num
+        CSU_Logger.info("[CSU] Received leaf number from CSP1.")
         #print("[CSU] leaf_num: ", leaf_num)
         label_share1_size = int.from_bytes(self.csp1_server.recv(PRIME_SIZE, socket.MSG_WAITALL), 'big')  #label_share1
         data = self.csp1_server.recv(label_share1_size*PRIME_SIZE, socket.MSG_WAITALL)                    #label_share1
         label_share1 = bytes_to_int_array(data)                                       #label_share1
+        CSU_Logger.info("[CSU] Received label share from CSP1.")
         
-
+        CSU_Logger.info("[CSU] Start finding fake index.")
         index = self.find_fake_index(model_share0_root, model_share1_root)
+        CSU_Logger.info("[CSU] End finding fake index.")
         #print("[CSU] index: ", index)
 
         fake_leaf_idx=np.zeros((leaf_num,),dtype=int)
