@@ -28,4 +28,5 @@ Run the images:
 docker-compose up
 ```
 
-![](./README/dockercompose_example_result.png)
+![](./README/dockercompose_example_result1.png)
+![](./README/dockercompose_example_result2.png)
